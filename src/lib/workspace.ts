@@ -1,7 +1,15 @@
 import type { Entry, Wheel, WheelSettings, WheelSlice, WorkspaceV1 } from '../types'
 
 export const STORAGE_KEY = 'spin-the-wheel.workspace.v1'
-export const DEFAULT_PALETTE: WheelSettings['palette'] = ['#A8BFA3', '#D6BFA7', '#C8B6E2', '#F3BC8E']
+export const DEFAULT_PALETTE: WheelSettings['palette'] = [
+  '#A8BFA3',
+  '#D6BFA7',
+  '#C8B6E2',
+  '#F3BC8E',
+  '#E4AEB4',
+  '#E8D58A',
+  '#AFC9D6',
+]
 
 export const createId = () =>
   globalThis.crypto?.randomUUID?.() ?? `id-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -69,9 +77,13 @@ const normalizeEntry = (value: unknown): Entry | null => {
 
 const normalizeSettings = (value: unknown): WheelSettings => {
   const candidate = value && typeof value === 'object' ? (value as Partial<WheelSettings>) : {}
-  const palette = Array.isArray(candidate.palette) && candidate.palette.length === 4 && candidate.palette.every(isHex)
-    ? (candidate.palette as WheelSettings['palette'])
-    : ([...DEFAULT_PALETTE] as WheelSettings['palette'])
+  const savedColors = Array.isArray(candidate.palette) && candidate.palette.every(isHex)
+    ? candidate.palette.slice(0, DEFAULT_PALETTE.length)
+    : []
+  const palette = [
+    ...savedColors,
+    ...DEFAULT_PALETTE.slice(savedColors.length),
+  ] as WheelSettings['palette']
   const spinDuration = Number.isFinite(candidate.spinDuration)
     ? Math.min(10, Math.max(2, Number(candidate.spinDuration)))
     : 5

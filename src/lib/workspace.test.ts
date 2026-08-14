@@ -52,6 +52,19 @@ describe('workspace utilities', () => {
     expect(normalizeWorkspace({ hello: 'world' })).toBeNull()
   })
 
+  it('extends legacy four-color palettes to the seven-color template', () => {
+    const wheel = createWheel('Legacy')
+    const legacyPalette = ['#111111', '#222222', '#333333', '#444444']
+    const normalized = normalizeWorkspace({
+      version: 1,
+      activeWheelId: wheel.id,
+      wheels: [{ ...wheel, settings: { ...wheel.settings, palette: legacyPalette } }],
+    })
+    expect(normalized?.wheels[0].settings.palette).toHaveLength(7)
+    expect(normalized?.wheels[0].settings.palette.slice(0, 4)).toEqual(legacyPalette)
+    expect(normalized?.wheels[0].settings.palette.slice(4)).toEqual(['#E4AEB4', '#E8D58A', '#AFC9D6'])
+  })
+
   it('round-trips labels, weights, and colors through CSV', () => {
     const wheel = createWheel('Hooks')
     wheel.entries = [

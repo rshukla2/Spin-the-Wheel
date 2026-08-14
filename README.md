@@ -11,7 +11,7 @@ A customizable, pastel spin wheel for choosing content hooks, reel formats, crea
 - Turn every non-empty line into a wheel entry
 - Create and switch between multiple named wheels
 - Shuffle, sort, duplicate, reorder, weight, recolor, or delete entries
-- Customize the four-color pastel palette, spin duration, label size, sound, volume, and confetti
+- Customize the seven-color pastel palette, spin duration, label size, casino-style sound, volume, and confetti
 - Keep a timestamped history of winning entries
 - Optionally remove winners automatically for no-repeat rounds
 - Save the full workspace in the browser between sessions
@@ -28,7 +28,7 @@ A customizable, pastel spin wheel for choosing content hooks, reel formats, crea
 4. Press the center **Spin** button, or press <kbd>Space</kbd> while focus is outside a form control.
 5. Keep the winner, remove it, or spin again. Previous winners appear in **Results**.
 
-Use **Settings** to rename the wheel, edit its pastel palette, change animation and label behavior, turn sound or confetti on and off, duplicate the wheel, or delete it. The final remaining wheel cannot be deleted.
+Use **Settings** to rename the wheel, edit its pastel palette, change animation and label behavior, turn the Vegas-style ratchet and winner fanfare or confetti on and off, duplicate the wheel, or delete it. The final remaining wheel cannot be deleted.
 
 ## Browser saving and privacy
 

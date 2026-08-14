@@ -15,7 +15,7 @@ export interface ResultRecord {
 }
 
 export interface WheelSettings {
-  palette: [string, string, string, string]
+  palette: [string, string, string, string, string, string, string]
   spinDuration: number
   labelSize: LabelSize
   autoRemove: boolean

@@ -17,9 +17,11 @@ import {
   wheelToCsv,
 } from './lib/workspace'
 import type { Entry, Wheel, WorkspaceV1 } from './types'
+import { playCasinoSpin, playCasinoWin } from './lib/casinoAudio'
 
 type Panel = 'entries' | 'results' | 'settings'
 type Notice = { message: string; kind?: 'error' | 'success' } | null
+const PALETTE_NAMES = ['Sage', 'Oat', 'Lavender', 'Peach', 'Dusty rose', 'Butter', 'Powder blue']
 
 const downloadFile = (name: string, content: string, type: string) => {
   const url = URL.createObjectURL(new Blob([content], { type }))
@@ -36,33 +38,6 @@ const formatTime = (iso: string) => new Intl.DateTimeFormat(undefined, {
   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
 }).format(new Date(iso))
 
-let sharedAudioContext: AudioContext | null = null
-
-const playTone = (volume: number, winner = false) => {
-  try {
-    const AudioContextClass = window.AudioContext ?? (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    sharedAudioContext ??= new AudioContextClass()
-    const context = sharedAudioContext
-    if (context.state === 'suspended') void context.resume()
-    const notes = winner ? [523.25, 659.25, 783.99] : [660]
-    notes.forEach((frequency, index) => {
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      const startsAt = context.currentTime + index * 0.08
-      oscillator.type = winner ? 'sine' : 'triangle'
-      oscillator.frequency.value = frequency
-      gain.gain.setValueAtTime(0, startsAt)
-      gain.gain.linearRampToValueAtTime(volume * (winner ? 0.14 : 0.035), startsAt + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.0001, startsAt + (winner ? 0.35 : 0.06))
-      oscillator.connect(gain).connect(context.destination)
-      oscillator.start(startsAt)
-      oscillator.stop(startsAt + (winner ? 0.36 : 0.07))
-    })
-  } catch {
-    // Audio feedback is optional and may be blocked by the browser.
-  }
-}
-
 function App() {
   const [workspace, setWorkspace] = useState<WorkspaceV1>(() => loadWorkspace())
   const [panel, setPanel] = useState<Panel>('entries')
@@ -78,7 +53,6 @@ function App() {
   const resultCloseRef = useRef<HTMLButtonElement>(null)
   const lastFocusRef = useRef<HTMLElement | null>(null)
   const spinTimerRef = useRef<number | null>(null)
-  const tickTimerRef = useRef<number | null>(null)
 
   const wheel = useMemo(
     () => workspace.wheels.find((item) => item.id === workspace.activeWheelId) ?? workspace.wheels[0],
@@ -102,7 +76,6 @@ function App() {
 
   useEffect(() => () => {
     if (spinTimerRef.current) window.clearTimeout(spinTimerRef.current)
-    if (tickTimerRef.current) window.clearInterval(tickTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -139,7 +112,6 @@ function App() {
   }, [])
 
   const finishSpin = useCallback((selected: Entry, wheelId: string, sound: boolean, volume: number) => {
-    if (tickTimerRef.current) window.clearInterval(tickTimerRef.current)
     setSpinning(false)
     setWinner(selected)
     setConfettiKey((value) => value + 1)
@@ -157,7 +129,7 @@ function App() {
         results: [record, ...item.results].slice(0, 100),
       } : item),
     }))
-    if (sound) playTone(volume, true)
+    if (sound) playCasinoWin(volume)
   }, [])
 
   const spin = useCallback(() => {
@@ -172,8 +144,7 @@ function App() {
     const duration = reducedMotion ? 200 : wheel.settings.spinDuration * 1000
     setRotation((current) => targetRotation(current, slice, reducedMotion ? 1 : 6 + Math.floor(Math.random() * 3)))
     if (wheel.settings.sound && !reducedMotion) {
-      playTone(wheel.settings.volume)
-      tickTimerRef.current = window.setInterval(() => playTone(wheel.settings.volume), 260)
+      playCasinoSpin(wheel.settings.spinDuration, wheel.settings.volume)
     }
     spinTimerRef.current = window.setTimeout(
       () => finishSpin(selected, wheel.id, wheel.settings.sound, wheel.settings.volume),
@@ -344,7 +315,7 @@ function App() {
                         <input aria-label={`Entry ${index + 1}`} value={entry.label} onChange={(event) => setEntry(entry.id, (current) => ({ ...current, label: event.target.value }))} />
                         <div className="entry-meta">
                           <label>Weight <input type="number" min="1" max="10" value={entry.weight} onChange={(event) => setEntry(entry.id, (current) => ({ ...current, weight: Math.min(10, Math.max(1, Number(event.target.value) || 1)) }))} /></label>
-                          <label className="color-control">Color <input type="color" value={entry.color ?? wheel.settings.palette[index % 4]} onChange={(event) => setEntry(entry.id, (current) => ({ ...current, color: event.target.value }))} /></label>
+                          <label className="color-control">Color <input type="color" value={entry.color ?? wheel.settings.palette[index % wheel.settings.palette.length]} onChange={(event) => setEntry(entry.id, (current) => ({ ...current, color: event.target.value }))} /></label>
                           {entry.color && <button className="mini-button" type="button" onClick={() => setEntry(entry.id, (current) => ({ ...current, color: null }))}>Use palette</button>}
                         </div>
                       </div>
@@ -399,7 +370,7 @@ function App() {
                 <legend>Pastel palette</legend>
                 <div className="palette-grid">
                   {wheel.settings.palette.map((color, index) => (
-                    <label key={`${index}-${color}`}><input type="color" value={color} onChange={(event) => updateActiveWheel((current) => { const palette = [...current.settings.palette] as Wheel['settings']['palette']; palette[index] = event.target.value; return { ...current, settings: { ...current.settings, palette } } })} /><span>{['Sage', 'Oat', 'Lavender', 'Peach'][index]}</span><small>{color.toUpperCase()}</small></label>
+                    <label key={`${index}-${color}`}><input type="color" value={color} onChange={(event) => updateActiveWheel((current) => { const palette = [...current.settings.palette] as Wheel['settings']['palette']; palette[index] = event.target.value; return { ...current, settings: { ...current.settings, palette } } })} /><span>{PALETTE_NAMES[index]}</span><small>{color.toUpperCase()}</small></label>
                   ))}
                 </div>
                 <button className="text-button" type="button" onClick={() => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, palette: [...DEFAULT_PALETTE] } }))}>Reset pastel palette</button>
@@ -408,7 +379,7 @@ function App() {
               <label className="setting-field"><span>Label size</span><select value={wheel.settings.labelSize} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, labelSize: event.target.value as Wheel['settings']['labelSize'] } }))}><option value="auto">Automatic</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>
               <div className="toggle-list">
                 <label><span><strong>Remove winner automatically</strong><small>Useful for no-repeat rounds</small></span><input type="checkbox" checked={wheel.settings.autoRemove} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, autoRemove: event.target.checked } }))} /></label>
-                <label><span><strong>Spin sounds</strong><small>Soft ticks and a winner chime</small></span><input type="checkbox" checked={wheel.settings.sound} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, sound: event.target.checked } }))} /></label>
+                <label><span><strong>Casino sounds</strong><small>Vegas ratchet, wheel rush, and winner fanfare</small></span><input type="checkbox" checked={wheel.settings.sound} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, sound: event.target.checked } }))} /></label>
                 {wheel.settings.sound && <label className="volume-row"><span>Volume <output>{Math.round(wheel.settings.volume * 100)}%</output></span><input type="range" min="0" max="1" step="0.05" value={wheel.settings.volume} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, volume: Number(event.target.value) } }))} /></label>}
                 <label><span><strong>Winner confetti</strong><small>Disabled when reduced motion is on</small></span><input type="checkbox" checked={wheel.settings.confetti} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, confetti: event.target.checked } }))} /></label>
               </div>
