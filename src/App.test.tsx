@@ -25,6 +25,21 @@ describe('App', () => {
     expect(graphic).not.toHaveTextContent('…')
   })
 
+  it('keeps labels readable on a dense wheel and centers them away from the pointer', () => {
+    render(<App />)
+    const labels = ['Quality Assurance Engineer', ...Array.from({ length: 49 }, (_, index) => `Role ${index + 2}`)]
+    fireEvent.change(screen.getByRole('textbox', { name: /wheel entries/i }), {
+      target: { value: labels.join('\n') },
+    })
+
+    const longLabel = [...screen.getByRole('img').querySelectorAll<SVGTextElement>('.wheel-label')]
+      .find((label) => label.textContent === 'Quality Assurance Engineer')
+    expect(longLabel).toBeDefined()
+    expect(Number(longLabel?.getAttribute('font-size'))).toBeGreaterThanOrEqual(12)
+    expect(longLabel).toHaveAttribute('text-anchor', 'middle')
+    expect(Number(longLabel?.getAttribute('textLength'))).toBeLessThanOrEqual(174)
+  })
+
   it('creates, renames, and duplicates named wheels', async () => {
     const user = userEvent.setup()
     render(<App />)

@@ -25,18 +25,25 @@ const wedgePath = (slice: WheelSlice) => {
 
 const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360
 
+const LABEL_RADIUS = 184
+const MAX_LABEL_WIDTH = 174
+
 const labelFontSize = (wheel: Wheel, slice: WheelSlice) => {
   const sliceDegrees = slice.endAngle - slice.startAngle
   const preferred = wheel.settings.labelSize === 'small'
-    ? 13
+    ? 14
     : wheel.settings.labelSize === 'medium'
-      ? 17
+      ? 18
       : wheel.settings.labelSize === 'large'
-        ? 21
-        : 20
-  const radialFit = 176 / Math.max(4, slice.entry.label.length * 0.56)
-  const wedgeFit = sliceDegrees * 0.42
-  return Math.max(6, Math.min(preferred, radialFit, wedgeFit))
+        ? 24
+        : 22
+  const wedgeFit = sliceDegrees * 1.8
+  return Math.max(9, Math.min(preferred, wedgeFit))
+}
+
+const fittedTextLength = (label: string, fontSize: number) => {
+  const estimatedWidth = label.length * fontSize * 0.56
+  return estimatedWidth > MAX_LABEL_WIDTH ? MAX_LABEL_WIDTH : undefined
 }
 
 export default function WheelView({ wheel, rotation, spinning, reducedMotion, winnerId, onSpin }: WheelViewProps) {
@@ -75,9 +82,11 @@ export default function WheelView({ wheel, rotation, spinning, reducedMotion, wi
             >
               {orderedSlices.map((slice) => {
                 const isWinner = slice.entry.id === winnerId
-                const position = polar(slice.centerAngle, 258)
+                const position = polar(slice.centerAngle, LABEL_RADIUS)
                 const angle = normalizeAngle(slice.centerAngle)
                 const flip = angle > 90 && angle < 270
+                const fontSize = labelFontSize(wheel, slice)
+                const textLength = fittedTextLength(slice.entry.label, fontSize)
                 const lift = polar(slice.centerAngle, isWinner ? 8 : 0)
                 const translateX = lift.x - 300
                 const translateY = lift.y - 300
@@ -97,9 +106,11 @@ export default function WheelView({ wheel, rotation, spinning, reducedMotion, wi
                       x={position.x}
                       y={position.y}
                       className="wheel-label"
-                      fontSize={labelFontSize(wheel, slice)}
-                      textAnchor={flip ? 'start' : 'end'}
+                      fontSize={fontSize}
+                      textAnchor="middle"
                       dominantBaseline="middle"
+                      textLength={textLength}
+                      lengthAdjust={textLength ? 'spacingAndGlyphs' : undefined}
                       transform={`rotate(${slice.centerAngle + (flip ? 180 : 0)} ${position.x} ${position.y})`}
                     >
                       {slice.entry.label}

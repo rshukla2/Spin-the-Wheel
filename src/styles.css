@@ -52,7 +52,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .eyebrow { margin: 0 0 5px; color: #6e5c75; text-transform: uppercase; letter-spacing: .15em; font-size: 11px; font-weight: 850; }
 .wheel-heading h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(30px,3vw,52px); font-weight: 500; letter-spacing: -.04em; line-height: 1; }
 .entry-count { white-space: nowrap; font-size: 13px; font-weight: 750; color: var(--muted); background: rgba(255,255,255,.65); padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; }
-.wheel-wrap { position: relative; width: min(100%, 760px); aspect-ratio: 1; margin: auto; display: grid; place-items: center; filter: drop-shadow(0 28px 38px rgba(62,42,52,.12)); }
+.wheel-wrap { position: relative; width: min(100%, 760px); aspect-ratio: 1; margin: 64px auto auto; display: grid; place-items: center; filter: drop-shadow(0 28px 38px rgba(62,42,52,.12)); }
 .wheel-svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 0 rgba(47,41,51,.65)); }
 .wheel-slice { transition: opacity .3s ease, filter .35s ease; }
 .wheel-slice-shape { stroke: rgba(47,41,51,.16); stroke-width: 1.3; transition: stroke-width .3s ease, filter .35s ease; }
@@ -62,7 +62,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .wheel-slice.is-winner .wheel-label { font-weight: 950; stroke: rgba(255,255,255,.5); stroke-width: 2.4px; }
 .wheel-outline { fill: none; stroke: var(--ink); stroke-width: 5; }
 .wheel-label { fill: var(--ink); font-family: inherit; font-weight: 800; paint-order: stroke; stroke: rgba(255,255,255,.28); stroke-width: 1.5px; stroke-linejoin: round; letter-spacing: -.015em; }
-.wheel-pointer { position: absolute; z-index: 8; top: -8px; left: 50%; transform: translateX(-50%); width: 63px; height: 82px; filter: drop-shadow(0 5px 0 rgba(47,41,51,.7)); }
+.wheel-pointer { position: absolute; z-index: 8; top: -66px; left: 50%; transform: translateX(-50%); width: 63px; height: 82px; filter: drop-shadow(0 5px 0 rgba(47,41,51,.7)); }
 .wheel-pointer::before { content: ''; position: absolute; inset: 0; background: var(--paper); clip-path: polygon(4% 0,96% 0,50% 100%); }
 .wheel-pointer span { position: absolute; inset: 6px; background: var(--peach); clip-path: polygon(4% 0,96% 0,50% 100%); }
 .spin-button { position: absolute; z-index: 6; width: clamp(116px,20%,154px); aspect-ratio: 1; border-radius: 50%; border: 4px solid var(--ink); background: var(--paper); box-shadow: 0 8px 0 var(--ink), 0 13px 24px rgba(47,41,51,.25); display: flex; flex-direction: column; align-items: center; justify-content: center; transform: translateY(-4px); transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
@@ -187,7 +187,8 @@ input[type="range"] { accent-color: #745c8d; }
   .workspace { padding: 22px 13px 36px; gap: 28px; min-height: auto; }
   .wheel-heading { align-items: center; }
   .wheel-heading h1 { font-size: 29px; }
-  .wheel-pointer { width: 42px; height: 57px; top: -3px; }
+  .wheel-wrap { margin-top: 48px; }
+  .wheel-pointer { width: 42px; height: 57px; top: -49px; }
   .spin-button { width: 24%; min-width: 86px; border-width: 3px; box-shadow: 0 5px 0 var(--ink); }
   .spin-button span { font-size: 23px; }
   .spin-button small { display: none; }

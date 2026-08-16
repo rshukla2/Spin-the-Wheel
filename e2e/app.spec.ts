@@ -28,3 +28,24 @@ test('supports keyboard spinning', async ({ page }) => {
   await page.locator('body').press('Space')
   await expect(page.locator('[data-winner="true"]')).toBeVisible({ timeout: 7_000 })
 })
+
+test('keeps dense labels readable and the selected label clear of the pointer', async ({ page }) => {
+  const entries = ['Quality Assurance Engineer', ...Array.from({ length: 49 }, (_, index) => `Role ${index + 2}`)]
+  await page.getByRole('textbox', { name: /wheel entries/i }).fill(entries.join('\n'))
+
+  const labels = page.locator('.wheel-label')
+  await expect(labels).toHaveCount(50)
+  const fontSizes = await labels.evaluateAll((nodes) => nodes.map((node) => Number.parseFloat(getComputedStyle(node).fontSize)))
+  expect(Math.min(...fontSizes)).toBeGreaterThanOrEqual(12)
+
+  await page.getByRole('button', { name: 'Spin the wheel' }).click()
+  const winningLabel = page.locator('[data-winner="true"] .wheel-label')
+  await expect(winningLabel).toBeVisible({ timeout: 7_000 })
+  const [pointerBox, labelBox] = await Promise.all([
+    page.locator('.wheel-pointer').boundingBox(),
+    winningLabel.boundingBox(),
+  ])
+  expect(pointerBox).not.toBeNull()
+  expect(labelBox).not.toBeNull()
+  expect(labelBox!.y).toBeGreaterThan(pointerBox!.y + pointerBox!.height)
+})
