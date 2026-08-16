@@ -39,8 +39,20 @@ test('keeps dense labels readable and the selected label clear of the pointer', 
   expect(Math.min(...fontSizes)).toBeGreaterThanOrEqual(12)
 
   await page.getByRole('button', { name: 'Spin the wheel' }).click()
-  const winningLabel = page.locator('[data-winner="true"] .wheel-label')
+  const winningSlice = page.locator('[data-winner="true"]')
+  const winningLabel = winningSlice.locator('.wheel-label')
   await expect(winningLabel).toBeVisible({ timeout: 7_000 })
+  const winnerStyle = await winningSlice.locator('.wheel-slice-shape').evaluate((shape) => ({
+    stroke: getComputedStyle(shape).stroke,
+    strokeWidth: getComputedStyle(shape).strokeWidth,
+    groupFilter: getComputedStyle(shape.parentElement!).filter,
+    groupTransform: shape.parentElement!.getAttribute('transform'),
+  }))
+  const normalStrokeWidth = await page.locator('.wheel-slice.is-muted .wheel-slice-shape').first().evaluate((shape) => getComputedStyle(shape).strokeWidth)
+  expect(winnerStyle.stroke).toBe('rgb(47, 41, 51)')
+  expect(winnerStyle.strokeWidth).toBe(normalStrokeWidth)
+  expect(winnerStyle.groupFilter).toBe('none')
+  expect(winnerStyle.groupTransform).toBeNull()
   const [pointerBox, labelBox] = await Promise.all([
     page.locator('.wheel-pointer').boundingBox(),
     winningLabel.boundingBox(),

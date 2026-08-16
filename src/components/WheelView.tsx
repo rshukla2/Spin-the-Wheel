@@ -87,15 +87,11 @@ export default function WheelView({ wheel, rotation, spinning, reducedMotion, wi
                 const flip = angle > 90 && angle < 270
                 const fontSize = labelFontSize(wheel, slice)
                 const textLength = fittedTextLength(slice.entry.label, fontSize)
-                const lift = polar(slice.centerAngle, isWinner ? 8 : 0)
-                const translateX = lift.x - 300
-                const translateY = lift.y - 300
                 return (
                   <g
                     key={slice.entry.id}
                     className={`wheel-slice ${winnerId && !isWinner ? 'is-muted' : ''} ${isWinner ? 'is-winner' : ''}`}
                     data-winner={isWinner ? 'true' : undefined}
-                    transform={isWinner ? `translate(${translateX} ${translateY})` : undefined}
                   >
                     {slices.length === 1 ? (
                       <circle className="wheel-slice-shape" cx="300" cy="300" r="286" fill={slice.color} />
