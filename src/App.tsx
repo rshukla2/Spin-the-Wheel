@@ -5,6 +5,7 @@ import {
   createEntry,
   createId,
   createWheel,
+  ensureValidRiggedEntry,
   getSlices,
   loadWorkspace,
   normalizeWorkspace,
@@ -59,6 +60,11 @@ function App() {
     () => workspace.wheels.find((item) => item.id === workspace.activeWheelId) ?? workspace.wheels[0],
     [workspace],
   )
+  const pendingRemovalId = winner?.wheelId === wheel.id && winner.pendingRemoval ? winner.entry.id : null
+  const riggableEntries = useMemo(
+    () => wheel.entries.filter((entry) => entry.id !== pendingRemovalId),
+    [pendingRemovalId, wheel.entries],
+  )
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -111,7 +117,9 @@ function App() {
   const updateActiveWheel = useCallback((updater: (current: Wheel) => Wheel) => {
     setWorkspace((current) => ({
       ...current,
-      wheels: current.wheels.map((item) => item.id === current.activeWheelId ? updater(item) : item),
+      wheels: current.wheels.map((item) => item.id === current.activeWheelId
+        ? ensureValidRiggedEntry(updater(item))
+        : item),
     }))
   }, [])
 
@@ -139,14 +147,17 @@ function App() {
     const entries = winner?.wheelId === wheel.id && winner.pendingRemoval
       ? wheel.entries.filter((entry) => entry.id !== winner.entry.id)
       : wheel.entries
-    if (entries.length !== wheel.entries.length) {
-      updateActiveWheel((current) => ({ ...current, entries }))
-    }
+    const riggedWinner = entries.find((entry) => entry.id === wheel.settings.riggedEntryId)
+    updateActiveWheel((current) => ({
+      ...current,
+      entries,
+      settings: { ...current.settings, riggedEntryId: null },
+    }))
     if (!entries.length) {
       setWinner(null)
       return
     }
-    const selected = weightedPick(entries)
+    const selected = riggedWinner ?? weightedPick(entries)
     if (!selected) return
     const slice = getSlices(entries, wheel.settings.palette).find((item) => item.entry.id === selected.id)
     if (!slice) return
@@ -387,8 +398,26 @@ function App() {
                 </div>
                 <button className="text-button" type="button" onClick={() => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, palette: [...DEFAULT_PALETTE] } }))}>Reset pastel palette</button>
               </fieldset>
-              <label className="setting-field range-field"><span>Spin duration <output>{wheel.settings.spinDuration}s</output></span><input type="range" min="2" max="10" step="1" value={wheel.settings.spinDuration} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, spinDuration: Number(event.target.value) } }))} /></label>
+              <label className="setting-field range-field"><span>Spin duration <output>{wheel.settings.spinDuration}s</output></span><input aria-label="Spin duration" type="range" min="2" max="10" step="1" value={wheel.settings.spinDuration} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, spinDuration: Number(event.target.value) } }))} /></label>
               <label className="setting-field"><span>Label size</span><select value={wheel.settings.labelSize} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, labelSize: event.target.value as Wheel['settings']['labelSize'] } }))}><option value="auto">Automatic</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>
+              <label className="setting-field">
+                <span>Rigged Wheel</span>
+                <select
+                  aria-label="Rigged Wheel"
+                  aria-describedby="rigged-wheel-help"
+                  value={riggableEntries.some((entry) => entry.id === wheel.settings.riggedEntryId) ? wheel.settings.riggedEntryId ?? '' : ''}
+                  disabled={spinning || riggableEntries.length === 0}
+                  onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, riggedEntryId: event.target.value || null } }))}
+                >
+                  <option value="">Random (not rigged)</option>
+                  {riggableEntries.map((entry) => {
+                    const matching = riggableEntries.filter((item) => item.label === entry.label)
+                    const duplicateNumber = matching.findIndex((item) => item.id === entry.id) + 1
+                    return <option key={entry.id} value={entry.id}>{entry.label}{matching.length > 1 ? ` (${duplicateNumber})` : ''}</option>
+                  })}
+                </select>
+                <small className="setting-help" id="rigged-wheel-help">Choose the next winner once. This resets to random as soon as the spin begins.</small>
+              </label>
               <div className="toggle-list">
                 <label><span><strong>Remove winner automatically</strong><small>Removes the highlighted winner before the next spin</small></span><input type="checkbox" checked={wheel.settings.autoRemove} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, autoRemove: event.target.checked } }))} /></label>
                 <label><span><strong>Casino sounds</strong><small>Vegas ratchet, wheel rush, and winner fanfare</small></span><input type="checkbox" checked={wheel.settings.sound} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, sound: event.target.checked } }))} /></label>

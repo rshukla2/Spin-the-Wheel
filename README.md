@@ -14,6 +14,7 @@ A customizable, pastel spin wheel for choosing content hooks, reel formats, crea
 - Customize the seven-color pastel palette, spin duration, label size, casino-style sound, volume, and confetti
 - Keep a timestamped history of winning entries
 - Optionally remove winners automatically for no-repeat rounds
+- Queue a one-shot winner with the private **Rigged Wheel** setting
 - Save the full workspace in the browser between sessions
 - Back up or restore all wheels with JSON
 - Import or export the current wheel as CSV
@@ -28,11 +29,13 @@ A customizable, pastel spin wheel for choosing content hooks, reel formats, crea
 4. Press the center **Spin** button, or press <kbd>Space</kbd> while focus is outside a form control.
 5. The winning wedge lifts, gains a dark outline, and remains highlighted until the next spin. Previous winners appear in **Results**.
 
-Use **Settings** to rename the wheel, edit its pastel palette, change animation and label behavior, turn the Vegas-style ratchet and winner fanfare or confetti on and off, duplicate the wheel, or delete it. The final remaining wheel cannot be deleted.
+Use **Settings** to rename the wheel, edit its pastel palette, change animation and label behavior, turn the Vegas-style ratchet and winner fanfare or confetti on and off, duplicate the wheel, or delete it. **Rigged Wheel** can privately queue one entry to win the next spin; the choice clears when that spin starts and returns to the normal weight-aware random selection. The final remaining wheel cannot be deleted.
 
 ## Browser saving and privacy
 
 The app has no backend, accounts, analytics, or database. Its versioned workspace is saved to `localStorage` in the current browser, so it survives closing and reopening the browser on the same device.
+
+Pending one-shot Rigged Wheel choices are part of that local workspace and remain private to the browser unless the workspace is explicitly exported as JSON.
 
 - Clearing this site's browser data also clears the locally saved workspace.
 - Browser data does not automatically follow you to another device or browser profile.

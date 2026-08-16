@@ -26,6 +26,7 @@ export const defaultSettings = (): WheelSettings => ({
   palette: [...DEFAULT_PALETTE],
   spinDuration: 5,
   labelSize: 'auto',
+  riggedEntryId: null,
   autoRemove: false,
   sound: true,
   volume: 0.45,
@@ -53,11 +54,35 @@ export const parseLines = (value: string): string[] =>
     .map((line) => line.trim())
     .filter(Boolean)
 
-export const reconcileEntries = (entries: Entry[], value: string): Entry[] =>
-  parseLines(value).map((label, index) => {
-    const current = entries[index]
-    return current ? { ...current, label } : createEntry(label)
+export const reconcileEntries = (entries: Entry[], value: string): Entry[] => {
+  const labels = parseLines(value)
+  const usedIds = new Set<string>()
+  const reconciled: Array<Entry | null> = labels.map(() => null)
+
+  labels.forEach((label, index) => {
+    const exact = entries.find((entry) => entry.label === label && !usedIds.has(entry.id))
+    if (!exact) return
+    usedIds.add(exact.id)
+    reconciled[index] = exact
   })
+
+  return labels.map((label, index) => {
+    const exact = reconciled[index]
+    if (exact) return exact
+    const samePosition = entries[index]
+    if (samePosition && !usedIds.has(samePosition.id)) {
+      usedIds.add(samePosition.id)
+      return { ...samePosition, label }
+    }
+    return createEntry(label)
+  })
+}
+
+export const ensureValidRiggedEntry = (wheel: Wheel): Wheel => {
+  const riggedEntryId = wheel.settings.riggedEntryId
+  if (!riggedEntryId || wheel.entries.some((entry) => entry.id === riggedEntryId)) return wheel
+  return { ...wheel, settings: { ...wheel.settings, riggedEntryId: null } }
+}
 
 const isHex = (value: unknown): value is string =>
   typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
@@ -94,6 +119,7 @@ const normalizeSettings = (value: unknown): WheelSettings => {
     palette,
     spinDuration,
     labelSize,
+    riggedEntryId: typeof candidate.riggedEntryId === 'string' ? candidate.riggedEntryId : null,
     autoRemove: Boolean(candidate.autoRemove),
     sound: candidate.sound !== false,
     volume: Number.isFinite(candidate.volume) ? Math.min(1, Math.max(0, Number(candidate.volume))) : 0.45,
@@ -122,13 +148,14 @@ export const normalizeWorkspace = (value: unknown): WorkspaceV1 | null => {
           }]
         })
       : []
-    return [{
+    const entries = Array.isArray(wheel.entries) ? wheel.entries.flatMap((entry) => normalizeEntry(entry) ?? []) : []
+    return [ensureValidRiggedEntry({
       id,
       name: typeof wheel.name === 'string' && wheel.name.trim() ? wheel.name.trim() : 'Imported wheel',
-      entries: Array.isArray(wheel.entries) ? wheel.entries.flatMap((entry) => normalizeEntry(entry) ?? []) : [],
+      entries,
       results: results.slice(0, 100),
       settings: normalizeSettings(wheel.settings),
-    }]
+    })]
   })
   if (!wheels.length) return null
   const activeWheelId = wheels.some((wheel) => wheel.id === candidate.activeWheelId)
@@ -254,9 +281,23 @@ export const wheelFromCsv = (text: string, name = 'Imported CSV'): Wheel | null 
   return { ...createWheel(name), entries }
 }
 
-export const regenerateWheelIds = (wheel: Wheel): Wheel => ({
-  ...wheel,
-  id: createId(),
-  entries: wheel.entries.map((entry) => ({ ...entry, id: createId() })),
-  results: wheel.results.map((result) => ({ ...result, id: createId(), entryId: '' })),
-})
+export const regenerateWheelIds = (wheel: Wheel): Wheel => {
+  const entryIds = new Map<string, string>()
+  const entries = wheel.entries.map((entry) => {
+    const id = createId()
+    entryIds.set(entry.id, id)
+    return { ...entry, id }
+  })
+  return {
+    ...wheel,
+    id: createId(),
+    entries,
+    results: wheel.results.map((result) => ({ ...result, id: createId(), entryId: '' })),
+    settings: {
+      ...wheel.settings,
+      riggedEntryId: wheel.settings.riggedEntryId
+        ? entryIds.get(wheel.settings.riggedEntryId) ?? null
+        : null,
+    },
+  }
+}

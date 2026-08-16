@@ -18,6 +18,7 @@ export interface WheelSettings {
   palette: [string, string, string, string, string, string, string]
   spinDuration: number
   labelSize: LabelSize
+  riggedEntryId: string | null
   autoRemove: boolean
   sound: boolean
   volume: number

@@ -7,6 +7,7 @@ import {
   normalizeWorkspace,
   parseLines,
   reconcileEntries,
+  regenerateWheelIds,
   targetRotation,
   weightedPick,
   wheelFromCsv,
@@ -23,6 +24,19 @@ describe('workspace utilities', () => {
     const [updated, added] = reconcileEntries([original], 'New label\nAnother')
     expect(updated).toMatchObject({ id: original.id, label: 'New label', weight: 4, color: '#A8BFA3' })
     expect(added.label).toBe('Another')
+  })
+
+  it('preserves entry identity across deletion, reordering, and renaming', () => {
+    const first = createEntry('First')
+    const selected = createEntry('Selected')
+    const third = createEntry('Third')
+
+    const reordered = reconcileEntries([first, selected, third], 'Third\nFirst')
+    expect(reordered.map((entry) => entry.id)).toEqual([third.id, first.id])
+    expect(reordered.some((entry) => entry.id === selected.id)).toBe(false)
+
+    const renamed = reconcileEntries([first, selected, third], 'First\nRenamed\nThird')
+    expect(renamed[1]).toMatchObject({ id: selected.id, label: 'Renamed' })
   })
 
   it('uses weights when selecting and sizing slices', () => {
@@ -63,6 +77,28 @@ describe('workspace utilities', () => {
     expect(normalized?.wheels[0].settings.palette).toHaveLength(7)
     expect(normalized?.wheels[0].settings.palette.slice(0, 4)).toEqual(legacyPalette)
     expect(normalized?.wheels[0].settings.palette.slice(4)).toEqual(['#E4AEB4', '#E8D58A', '#AFC9D6'])
+    expect(normalized?.wheels[0].settings.riggedEntryId).toBeNull()
+  })
+
+  it('keeps valid rigged targets and clears missing targets during normalization', () => {
+    const wheel = createWheel('Rigged')
+    const target = createEntry('Target')
+    wheel.entries = [target]
+    wheel.settings.riggedEntryId = target.id
+    expect(normalizeWorkspace({ version: 1, activeWheelId: wheel.id, wheels: [wheel] })?.wheels[0].settings.riggedEntryId).toBe(target.id)
+
+    wheel.settings.riggedEntryId = 'missing-entry'
+    expect(normalizeWorkspace({ version: 1, activeWheelId: wheel.id, wheels: [wheel] })?.wheels[0].settings.riggedEntryId).toBeNull()
+  })
+
+  it('remaps a queued rigged target when regenerating wheel IDs', () => {
+    const wheel = createWheel('Copy me')
+    wheel.entries = [createEntry('First'), createEntry('Target')]
+    wheel.settings.riggedEntryId = wheel.entries[1].id
+
+    const regenerated = regenerateWheelIds(wheel)
+    expect(regenerated.entries[1].id).not.toBe(wheel.entries[1].id)
+    expect(regenerated.settings.riggedEntryId).toBe(regenerated.entries[1].id)
   })
 
   it('round-trips labels, weights, and colors through CSV', () => {

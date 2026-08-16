@@ -49,3 +49,28 @@ test('keeps dense labels readable and the selected label clear of the pointer', 
   expect(labelBox).not.toBeNull()
   expect(labelBox!.y).toBeGreaterThan(pointerBox!.y + pointerBox!.height)
 })
+
+test('uses a rigged winner once and returns to random when that entry is deleted', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Settings' }).click()
+  await page.getByRole('slider', { name: 'Spin duration' }).fill('2')
+  const riggedWheel = page.getByLabel('Rigged Wheel')
+  await riggedWheel.selectOption({ label: 'Hook idea 4' })
+  await expect(riggedWheel).not.toHaveValue('')
+  await expect(page.locator('.wheel-stage')).not.toContainText(/rigged/i)
+
+  await page.getByRole('button', { name: 'Spin the wheel' }).click()
+  await expect(riggedWheel).toHaveValue('')
+  const firstWinner = page.locator('[data-winner="true"]')
+  await expect(firstWinner).toContainText('Hook idea 4', { timeout: 4_000 })
+
+  await riggedWheel.selectOption({ label: 'Hook idea 5' })
+  await page.getByRole('tab', { name: /Entries/ }).click()
+  await page.getByRole('textbox', { name: /wheel entries/i }).fill('Hook idea 1\nHook idea 2\nHook idea 3\nHook idea 4\nHook idea 6')
+  await page.getByRole('tab', { name: 'Settings' }).click()
+  await expect(riggedWheel).toHaveValue('')
+
+  await page.getByRole('button', { name: 'Spin again' }).click()
+  const secondWinner = page.locator('[data-winner="true"]')
+  await expect(secondWinner).toBeVisible({ timeout: 4_000 })
+  await expect(secondWinner).not.toContainText('Hook idea 5')
+})

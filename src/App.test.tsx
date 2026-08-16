@@ -70,6 +70,61 @@ describe('App', () => {
     vi.useRealTimers()
   })
 
+  it('queues one rigged winner, consumes it at spin start, and records the forced result', async () => {
+    vi.useFakeTimers()
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    const riggedWheel = screen.getByLabelText('Rigged Wheel')
+    const target = within(riggedWheel).getByRole('option', { name: 'Hook idea 4' }) as HTMLOptionElement
+    fireEvent.change(riggedWheel, { target: { value: target.value } })
+    expect(riggedWheel).toHaveValue(target.value)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Spin the wheel' }))
+    expect(riggedWheel).toHaveValue('')
+    await act(() => vi.advanceTimersByTimeAsync(5_100))
+
+    expect(screen.getByRole('img').querySelector('[data-winner="true"]')).toHaveTextContent('Hook idea 4')
+    fireEvent.click(screen.getByRole('tab', { name: /Results \(1\)/ }))
+    expect(within(screen.getByRole('tabpanel')).getByText('Hook idea 4')).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('clears a queued target when its line is deleted and preserves it when renamed', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    let riggedWheel = screen.getByLabelText('Rigged Wheel')
+    const target = within(riggedWheel).getByRole('option', { name: 'Hook idea 3' }) as HTMLOptionElement
+    fireEvent.change(riggedWheel, { target: { value: target.value } })
+
+    fireEvent.click(screen.getByRole('tab', { name: /Entries/ }))
+    const editor = screen.getByRole('textbox', { name: /wheel entries/i })
+    fireEvent.change(editor, { target: { value: 'Hook idea 1\nHook idea 2\nRenamed target\nHook idea 4\nHook idea 5\nHook idea 6' } })
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    riggedWheel = screen.getByLabelText('Rigged Wheel')
+    expect(riggedWheel).toHaveValue(target.value)
+    expect(within(riggedWheel).getByRole('option', { name: 'Renamed target' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Entries/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: /wheel entries/i }), { target: { value: 'Hook idea 1\nHook idea 2\nHook idea 4\nHook idea 5\nHook idea 6' } })
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    expect(screen.getByLabelText('Rigged Wheel')).toHaveValue('')
+  })
+
+  it('does not offer a winner that is pending automatic removal as the next rigged target', async () => {
+    vi.useFakeTimers()
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Remove winner automatically/i }))
+    const riggedWheel = screen.getByLabelText('Rigged Wheel')
+    const target = within(riggedWheel).getByRole('option', { name: 'Hook idea 2' }) as HTMLOptionElement
+    fireEvent.change(riggedWheel, { target: { value: target.value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Spin the wheel' }))
+    await act(() => vi.advanceTimersByTimeAsync(5_100))
+
+    expect(within(screen.getByLabelText('Rigged Wheel')).queryByRole('option', { name: 'Hook idea 2' })).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
   it('keeps an auto-remove winner highlighted until the next spin', async () => {
     vi.useFakeTimers()
     render(<App />)

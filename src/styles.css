@@ -124,6 +124,7 @@ kbd { border: 1px solid #cfc3bb; background: white; border-radius: 5px; padding:
 
 .setting-field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 800; margin-bottom: 22px; }
 .setting-field > input:not([type="range"]), .setting-field select { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid #d8cdc6; background: #fff; }
+.setting-help { color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.45; }
 .setting-group { border: 0; border-top: 1px solid var(--line); padding: 20px 0 0; margin: 0 0 23px; }
 .setting-group legend { padding: 0 10px 0 0; font-size: 13px; font-weight: 850; }
 .palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0 0 8px; }
