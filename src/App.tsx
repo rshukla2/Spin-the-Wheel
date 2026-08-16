@@ -41,6 +41,8 @@ const formatTime = (iso: string) => new Intl.DateTimeFormat(undefined, {
 
 function App() {
   const [workspace, setWorkspace] = useState<WorkspaceV1>(() => loadWorkspace())
+  const workspaceRef = useRef(workspace)
+  workspaceRef.current = workspace
   const [panel, setPanel] = useState<Panel>('entries')
   const [showAdvancedEntries, setShowAdvancedEntries] = useState(false)
   const [rotation, setRotation] = useState(0)
@@ -72,6 +74,14 @@ function App() {
     }, 180)
     return () => window.clearTimeout(timer)
   }, [workspace])
+
+  useEffect(() => {
+    const flushWorkspace = () => {
+      try { saveWorkspace(workspaceRef.current) } catch { /* The page is leaving, so there is nowhere to show an error. */ }
+    }
+    window.addEventListener('pagehide', flushWorkspace)
+    return () => window.removeEventListener('pagehide', flushWorkspace)
+  }, [])
 
   useEffect(() => () => {
     if (spinTimerRef.current) window.clearTimeout(spinTimerRef.current)

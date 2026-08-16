@@ -79,4 +79,16 @@ describe('App', () => {
     expect(stored.wheels[0].entries[0].label).toBe('Saved idea')
     vi.useRealTimers()
   })
+
+  it('flushes the latest workspace when the page is hidden', () => {
+    vi.useFakeTimers()
+    render(<App />)
+    fireEvent.change(screen.getByRole('textbox', { name: /wheel entries/i }), { target: { value: 'Saved immediately' } })
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
+    expect(stored.wheels[0].entries[0].label).toBe('Saved immediately')
+    vi.useRealTimers()
+  })
 })
