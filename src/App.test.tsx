@@ -15,6 +15,16 @@ describe('App', () => {
     expect(screen.getByRole('img', { name: /wheel with 2 entries/i })).toHaveTextContent('Story hook, Contrarian hook')
   })
 
+  it('shows long labels completely without ellipses', () => {
+    render(<App />)
+    fireEvent.change(screen.getByRole('textbox', { name: /wheel entries/i }), {
+      target: { value: 'Quality Assurance Engineer\nProduct Manager' },
+    })
+    const graphic = screen.getByRole('img', { name: /wheel with 2 entries/i })
+    expect(graphic).toHaveTextContent('Quality Assurance Engineer')
+    expect(graphic).not.toHaveTextContent('…')
+  })
+
   it('creates, renames, and duplicates named wheels', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -29,17 +39,33 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Reel formats copy/ })).toBeInTheDocument()
   })
 
-  it('spins, records a result, and lets the user remove the winner', async () => {
+  it('spins, records a result, and highlights the winning wedge without a dialog', async () => {
     vi.useFakeTimers()
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Spin the wheel' }))
     await act(() => vi.advanceTimersByTimeAsync(5_100))
-    const dialog = screen.getByRole('dialog', { name: /Hook idea/i })
-    expect(within(dialog).getByText('The wheel chose')).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove entry' }))
-    expect(screen.getByRole('tab', { name: 'Entries (5)' })).toBeInTheDocument()
+    const graphic = screen.getByRole('img', { name: /wheel with 6 entries/i })
+    const highlighted = graphic.querySelector('[data-winner="true"]')
+    expect(highlighted).not.toBeNull()
+    expect(highlighted).toHaveTextContent(/Hook idea/)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Spin again' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: /Results \(1\)/ }))
     expect(within(screen.getByRole('tabpanel')).getByText(/Hook idea/)).toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  it('keeps an auto-remove winner highlighted until the next spin', async () => {
+    vi.useFakeTimers()
+    render(<App />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Remove winner automatically/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Spin the wheel' }))
+    await act(() => vi.advanceTimersByTimeAsync(5_100))
+    expect(screen.getByRole('tab', { name: 'Entries (6)' })).toBeInTheDocument()
+    expect(screen.getByRole('img').querySelector('[data-winner="true"]')).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Spin again' }))
+    expect(screen.getByRole('tab', { name: 'Entries (5)' })).toBeInTheDocument()
     vi.useRealTimers()
   })
 

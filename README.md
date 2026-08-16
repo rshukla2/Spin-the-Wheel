@@ -26,7 +26,7 @@ A customizable, pastel spin wheel for choosing content hooks, reel formats, crea
 2. Put one option on each line. Blank lines are ignored.
 3. Select **Advanced** to change weights, colors, order, or individual entries.
 4. Press the center **Spin** button, or press <kbd>Space</kbd> while focus is outside a form control.
-5. Keep the winner, remove it, or spin again. Previous winners appear in **Results**.
+5. The winning wedge lifts, gains a dark outline, and remains highlighted until the next spin. Previous winners appear in **Results**.
 
 Use **Settings** to rename the wheel, edit its pastel palette, change animation and label behavior, turn the Vegas-style ratchet and winner fanfare or confetti on and off, duplicate the wheel, or delete it. The final remaining wheel cannot be deleted.
 

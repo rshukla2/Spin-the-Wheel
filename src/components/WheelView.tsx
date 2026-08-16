@@ -6,6 +6,7 @@ interface WheelViewProps {
   rotation: number
   spinning: boolean
   reducedMotion: boolean
+  winnerId: string | null
   onSpin: () => void
 }
 
@@ -25,20 +26,24 @@ const wedgePath = (slice: WheelSlice) => {
 const normalizeAngle = (angle: number) => ((angle % 360) + 360) % 360
 
 const labelFontSize = (wheel: Wheel, slice: WheelSlice) => {
-  if (wheel.settings.labelSize === 'small') return 13
-  if (wheel.settings.labelSize === 'medium') return 17
-  if (wheel.settings.labelSize === 'large') return 21
   const sliceDegrees = slice.endAngle - slice.startAngle
-  return Math.max(10, Math.min(20, sliceDegrees * 0.36, 250 / Math.max(8, slice.entry.label.length)))
+  const preferred = wheel.settings.labelSize === 'small'
+    ? 13
+    : wheel.settings.labelSize === 'medium'
+      ? 17
+      : wheel.settings.labelSize === 'large'
+        ? 21
+        : 20
+  const radialFit = 176 / Math.max(4, slice.entry.label.length * 0.56)
+  const wedgeFit = sliceDegrees * 0.42
+  return Math.max(6, Math.min(preferred, radialFit, wedgeFit))
 }
 
-const visibleLabel = (label: string, count: number) => {
-  const max = count > 24 ? 12 : count > 12 ? 18 : 28
-  return label.length > max ? `${label.slice(0, max - 1)}…` : label
-}
-
-export default function WheelView({ wheel, rotation, spinning, reducedMotion, onSpin }: WheelViewProps) {
+export default function WheelView({ wheel, rotation, spinning, reducedMotion, winnerId, onSpin }: WheelViewProps) {
   const slices = getSlices(wheel.entries, wheel.settings.palette)
+  const orderedSlices = winnerId
+    ? [...slices.filter((slice) => slice.entry.id !== winnerId), ...slices.filter((slice) => slice.entry.id === winnerId)]
+    : slices
   const transitionSeconds = reducedMotion ? 0.2 : wheel.settings.spinDuration
 
   return (
@@ -68,28 +73,38 @@ export default function WheelView({ wheel, rotation, spinning, reducedMotion, on
                 transition: `transform ${transitionSeconds}s cubic-bezier(.12,.62,.08,1)`,
               }}
             >
-              {slices.length === 1 ? (
-                <circle cx="300" cy="300" r="286" fill={slices[0].color} />
-              ) : slices.map((slice) => (
-                <path key={slice.entry.id} d={wedgePath(slice)} fill={slice.color} />
-              ))}
-              {slices.map((slice) => {
-                const position = polar(slice.centerAngle, 188)
+              {orderedSlices.map((slice) => {
+                const isWinner = slice.entry.id === winnerId
+                const position = polar(slice.centerAngle, 258)
                 const angle = normalizeAngle(slice.centerAngle)
                 const flip = angle > 90 && angle < 270
+                const lift = polar(slice.centerAngle, isWinner ? 8 : 0)
+                const translateX = lift.x - 300
+                const translateY = lift.y - 300
                 return (
-                  <text
-                    key={`label-${slice.entry.id}`}
-                    x={position.x}
-                    y={position.y}
-                    className="wheel-label"
-                    fontSize={labelFontSize(wheel, slice)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    transform={`rotate(${slice.centerAngle + (flip ? 180 : 0)} ${position.x} ${position.y})`}
+                  <g
+                    key={slice.entry.id}
+                    className={`wheel-slice ${winnerId && !isWinner ? 'is-muted' : ''} ${isWinner ? 'is-winner' : ''}`}
+                    data-winner={isWinner ? 'true' : undefined}
+                    transform={isWinner ? `translate(${translateX} ${translateY})` : undefined}
                   >
-                    {visibleLabel(slice.entry.label, slices.length)}
-                  </text>
+                    {slices.length === 1 ? (
+                      <circle className="wheel-slice-shape" cx="300" cy="300" r="286" fill={slice.color} />
+                    ) : (
+                      <path className="wheel-slice-shape" d={wedgePath(slice)} fill={slice.color} />
+                    )}
+                    <text
+                      x={position.x}
+                      y={position.y}
+                      className="wheel-label"
+                      fontSize={labelFontSize(wheel, slice)}
+                      textAnchor={flip ? 'start' : 'end'}
+                      dominantBaseline="middle"
+                      transform={`rotate(${slice.centerAngle + (flip ? 180 : 0)} ${position.x} ${position.y})`}
+                    >
+                      {slice.entry.label}
+                    </text>
+                  </g>
                 )
               })}
               <circle cx="300" cy="300" r="286" className="wheel-outline" />
@@ -106,11 +121,11 @@ export default function WheelView({ wheel, rotation, spinning, reducedMotion, on
           type="button"
           onClick={onSpin}
           disabled={spinning || wheel.entries.length === 0}
-          aria-label={spinning ? 'Spinning' : 'Spin the wheel'}
+          aria-label={spinning ? 'Spinning' : winnerId ? 'Spin again' : 'Spin the wheel'}
           aria-keyshortcuts="Space Enter"
         >
-          <span>{spinning ? 'Spinning' : 'Spin'}</span>
-          <small>{spinning ? 'good luck…' : 'tap to choose'}</small>
+          <span>{spinning ? 'Spinning' : winnerId ? 'Again' : 'Spin'}</span>
+          <small>{spinning ? 'good luck…' : winnerId ? 'try another' : 'tap to choose'}</small>
         </button>
       </div>
       <p className="keyboard-hint">Press <kbd>Space</kbd> to spin</p>

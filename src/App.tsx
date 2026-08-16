@@ -21,6 +21,7 @@ import { playCasinoSpin, playCasinoWin } from './lib/casinoAudio'
 
 type Panel = 'entries' | 'results' | 'settings'
 type Notice = { message: string; kind?: 'error' | 'success' } | null
+type WinnerState = { entry: Entry; wheelId: string; pendingRemoval: boolean }
 const PALETTE_NAMES = ['Sage', 'Oat', 'Lavender', 'Peach', 'Dusty rose', 'Butter', 'Powder blue']
 
 const downloadFile = (name: string, content: string, type: string) => {
@@ -44,14 +45,12 @@ function App() {
   const [showAdvancedEntries, setShowAdvancedEntries] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [spinning, setSpinning] = useState(false)
-  const [winner, setWinner] = useState<Entry | null>(null)
+  const [winner, setWinner] = useState<WinnerState | null>(null)
   const [notice, setNotice] = useState<Notice>(null)
   const [pendingImport, setPendingImport] = useState<WorkspaceV1 | null>(null)
   const [confettiKey, setConfettiKey] = useState(0)
   const [reducedMotion, setReducedMotion] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
-  const resultCloseRef = useRef<HTMLButtonElement>(null)
-  const lastFocusRef = useRef<HTMLElement | null>(null)
   const spinTimerRef = useRef<number | null>(null)
 
   const wheel = useMemo(
@@ -79,22 +78,17 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (winner) resultCloseRef.current?.focus()
-  }, [winner])
-
-  useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (winner) closeWinner()
       if (pendingImport) setPendingImport(null)
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [winner, pendingImport])
+  }, [pendingImport])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if ((event.code !== 'Space' && event.key !== ' ') || event.defaultPrevented || winner || pendingImport) return
+      if ((event.code !== 'Space' && event.key !== ' ') || event.defaultPrevented || pendingImport) return
       const target = event.target as HTMLElement
       if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName)) return
       event.preventDefault()
@@ -111,9 +105,9 @@ function App() {
     }))
   }, [])
 
-  const finishSpin = useCallback((selected: Entry, wheelId: string, sound: boolean, volume: number) => {
+  const finishSpin = useCallback((selected: Entry, wheelId: string, sound: boolean, volume: number, autoRemove: boolean) => {
     setSpinning(false)
-    setWinner(selected)
+    setWinner({ entry: selected, wheelId, pendingRemoval: autoRemove })
     setConfettiKey((value) => value + 1)
     const record = {
       id: createId(),
@@ -123,22 +117,29 @@ function App() {
     }
     setWorkspace((current) => ({
       ...current,
-      wheels: current.wheels.map((item) => item.id === wheelId ? {
-        ...item,
-        entries: item.settings.autoRemove ? item.entries.filter((entry) => entry.id !== selected.id) : item.entries,
-        results: [record, ...item.results].slice(0, 100),
-      } : item),
+      wheels: current.wheels.map((item) => item.id === wheelId
+        ? { ...item, results: [record, ...item.results].slice(0, 100) }
+        : item),
     }))
     if (sound) playCasinoWin(volume)
   }, [])
 
   const spin = useCallback(() => {
     if (spinning || !wheel.entries.length) return
-    const selected = weightedPick(wheel.entries)
+    const entries = winner?.wheelId === wheel.id && winner.pendingRemoval
+      ? wheel.entries.filter((entry) => entry.id !== winner.entry.id)
+      : wheel.entries
+    if (entries.length !== wheel.entries.length) {
+      updateActiveWheel((current) => ({ ...current, entries }))
+    }
+    if (!entries.length) {
+      setWinner(null)
+      return
+    }
+    const selected = weightedPick(entries)
     if (!selected) return
-    const slice = getSlices(wheel.entries, wheel.settings.palette).find((item) => item.entry.id === selected.id)
+    const slice = getSlices(entries, wheel.settings.palette).find((item) => item.entry.id === selected.id)
     if (!slice) return
-    lastFocusRef.current = document.activeElement as HTMLElement
     setWinner(null)
     setSpinning(true)
     const duration = reducedMotion ? 200 : wheel.settings.spinDuration * 1000
@@ -147,10 +148,10 @@ function App() {
       playCasinoSpin(wheel.settings.spinDuration, wheel.settings.volume)
     }
     spinTimerRef.current = window.setTimeout(
-      () => finishSpin(selected, wheel.id, wheel.settings.sound, wheel.settings.volume),
+      () => finishSpin(selected, wheel.id, wheel.settings.sound, wheel.settings.volume, wheel.settings.autoRemove),
       duration,
     )
-  }, [finishSpin, reducedMotion, spinning, wheel])
+  }, [finishSpin, reducedMotion, spinning, updateActiveWheel, wheel, winner])
 
   const addWheel = () => {
     if (spinning) return
@@ -190,12 +191,6 @@ function App() {
     ...current,
     entries: current.entries.filter((entry) => entry.id !== id),
   }))
-
-  const closeWinner = () => {
-    setWinner(null)
-    window.setTimeout(() => lastFocusRef.current?.focus(), 0)
-  }
-  const spinAgain = () => { setWinner(null); window.setTimeout(spin, 40) }
 
   const exportJson = () => downloadFile('spin-the-wheel-backup.json', JSON.stringify(workspace, null, 2), 'application/json')
   const exportCsv = () => downloadFile(`${safeFileName(wheel.name)}.csv`, wheelToCsv(wheel), 'text/csv;charset=utf-8')
@@ -267,7 +262,14 @@ function App() {
       </nav>
 
       <main className="workspace">
-        <WheelView wheel={wheel} rotation={rotation} spinning={spinning} reducedMotion={reducedMotion} onSpin={spin} />
+        <WheelView
+          wheel={wheel}
+          rotation={rotation}
+          spinning={spinning}
+          reducedMotion={reducedMotion}
+          winnerId={winner?.wheelId === wheel.id ? winner.entry.id : null}
+          onSpin={spin}
+        />
 
         <aside className="control-panel" aria-label="Wheel controls">
           <div className="panel-tabs" role="tablist" aria-label="Wheel controls">
@@ -378,7 +380,7 @@ function App() {
               <label className="setting-field range-field"><span>Spin duration <output>{wheel.settings.spinDuration}s</output></span><input type="range" min="2" max="10" step="1" value={wheel.settings.spinDuration} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, spinDuration: Number(event.target.value) } }))} /></label>
               <label className="setting-field"><span>Label size</span><select value={wheel.settings.labelSize} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, labelSize: event.target.value as Wheel['settings']['labelSize'] } }))}><option value="auto">Automatic</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>
               <div className="toggle-list">
-                <label><span><strong>Remove winner automatically</strong><small>Useful for no-repeat rounds</small></span><input type="checkbox" checked={wheel.settings.autoRemove} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, autoRemove: event.target.checked } }))} /></label>
+                <label><span><strong>Remove winner automatically</strong><small>Removes the highlighted winner before the next spin</small></span><input type="checkbox" checked={wheel.settings.autoRemove} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, autoRemove: event.target.checked } }))} /></label>
                 <label><span><strong>Casino sounds</strong><small>Vegas ratchet, wheel rush, and winner fanfare</small></span><input type="checkbox" checked={wheel.settings.sound} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, sound: event.target.checked } }))} /></label>
                 {wheel.settings.sound && <label className="volume-row"><span>Volume <output>{Math.round(wheel.settings.volume * 100)}%</output></span><input type="range" min="0" max="1" step="0.05" value={wheel.settings.volume} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, volume: Number(event.target.value) } }))} /></label>}
                 <label><span><strong>Winner confetti</strong><small>Disabled when reduced motion is on</small></span><input type="checkbox" checked={wheel.settings.confetti} onChange={(event) => updateActiveWheel((current) => ({ ...current, settings: { ...current.settings, confetti: event.target.checked } }))} /></label>
@@ -392,21 +394,11 @@ function App() {
         </aside>
       </main>
 
-      <div className="aria-live visually-hidden" aria-live="polite">{winner ? `Winner: ${winner.label}` : ''}</div>
+      <div className="aria-live visually-hidden" aria-live="polite">{winner ? `Winner: ${winner.entry.label}` : ''}</div>
 
-      {winner && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeWinner()}>
-          {wheel.settings.confetti && !reducedMotion && <div className="confetti" key={confettiKey} aria-hidden="true">{Array.from({ length: 28 }, (_, index) => <i key={index} style={{ '--i': index } as React.CSSProperties} />)}</div>}
-          <section className="winner-card" role="dialog" aria-modal="true" aria-labelledby="winner-title">
-            <button ref={resultCloseRef} className="modal-close" type="button" onClick={closeWinner} aria-label="Close result">×</button>
-            <span className="winner-kicker">The wheel chose</span>
-            <h2 id="winner-title">{winner.label}</h2>
-            <p>There’s your next direction. Make it yours.</p>
-            <div className="winner-actions">
-              <button className="primary-button" type="button" onClick={spinAgain}>Spin again</button>
-              {!wheel.settings.autoRemove && <button className="secondary-button" type="button" onClick={() => { removeEntry(winner.id); closeWinner() }}>Remove entry</button>}
-            </div>
-          </section>
+      {winner?.wheelId === wheel.id && wheel.settings.confetti && !reducedMotion && (
+        <div className="confetti" key={confettiKey} aria-hidden="true">
+          {Array.from({ length: 28 }, (_, index) => <i key={index} style={{ '--i': index } as React.CSSProperties} />)}
         </div>
       )}
 
